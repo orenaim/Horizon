@@ -1,0 +1,36 @@
+{
+  "id": "moab-far",
+  "name": "Canyon Country",
+  "source": "USGS 3DEP elevation image service",
+  "projection": "EPSG:4326",
+  "projectionReference": "moab-terrain.json",
+  "sourceBounds": [
+    -110.95688791766663,
+    37.51634926338484,
+    -108.44311208233334,
+    39.48365073661516
+  ],
+  "samples": [
+    441,
+    441
+  ],
+  "worldSize": [
+    21900,
+    21900
+  ],
+  "worldBounds": [
+    -10950,
+    -10950,
+    10950,
+    10950
+  ],
+  "worldOrigin": [
+    0,
+    0
+  ],
+  "verticalScale": 0.1,
+  "elevationRange": [
+    1100.270284016927,
+    3769.68115234375
+  ]
+}

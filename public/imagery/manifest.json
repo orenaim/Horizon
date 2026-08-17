@@ -1,0 +1,325 @@
+{
+  "source": "USGS NAIP Plus orthoimagery via The National Map (public domain)",
+  "generated": "2026-08-17",
+  "layers": [
+    {
+      "kind": "ground",
+      "region": "hawaii",
+      "name": "oahu",
+      "bounds": [
+        -3625.840110613908,
+        -3116.9599999999923,
+        3625.840110613908,
+        3116.9599999999923
+      ]
+    },
+    {
+      "kind": "ground",
+      "region": "hawaii",
+      "name": "kauai",
+      "bounds": [
+        -19268.750302120083,
+        -9016.920000000004,
+        -13260.215261673948,
+        -4007.519999999973
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "hawaii",
+      "name": "PHNL",
+      "bounds": [
+        2.29,
+        1376.89,
+        752.95,
+        1906.73
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "hawaii",
+      "name": "PHJR",
+      "bounds": [
+        -1239.84,
+        1635.01,
+        -842.33,
+        1983.55
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "hawaii",
+      "name": "PHDH",
+      "bounds": [
+        -2586.63,
+        -1320.76,
+        -2127,
+        -1114.7
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "hawaii",
+      "name": "PHLI",
+      "bounds": [
+        -14393.38,
+        -5845.44,
+        -14050.85,
+        -5406.99
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "hawaii",
+      "name": "PHPA",
+      "bounds": [
+        -17048.52,
+        -4855.74,
+        -16794.27,
+        -4656.69
+      ]
+    },
+    {
+      "kind": "ground",
+      "region": "grand-canyon",
+      "name": "grand-canyon",
+      "bounds": [
+        -3506.085256582387,
+        -3116.9600000000123,
+        3506.085256582387,
+        3116.9600000000123
+      ]
+    },
+    {
+      "kind": "ground",
+      "region": "grand-canyon",
+      "name": "grand-canyon-far",
+      "bounds": [
+        -10967.7538795654,
+        -10909.359999999999,
+        10967.7538795654,
+        10909.359999999999
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "grand-canyon",
+      "name": "KGCN",
+      "bounds": [
+        2184.48,
+        1862.11,
+        2594.79,
+        2283
+      ]
+    },
+    {
+      "kind": "ground",
+      "region": "tahoe",
+      "name": "tahoe",
+      "bounds": [
+        -3152.7689430105943,
+        -3673.5599999999804,
+        3152.7689430105943,
+        3673.5599999999804
+      ]
+    },
+    {
+      "kind": "ground",
+      "region": "tahoe",
+      "name": "tahoe-far",
+      "bounds": [
+        -10950,
+        -10950,
+        10950,
+        10950
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "tahoe",
+      "name": "KTVL",
+      "bounds": [
+        -212.98,
+        2188.72,
+        29.56,
+        2622.53
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "tahoe",
+      "name": "KTRK",
+      "bounds": [
+        -1545.58,
+        -2490.06,
+        -1168.02,
+        -2186.48
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "tahoe",
+      "name": "KMEV",
+      "bounds": [
+        1838.42,
+        1006.49,
+        2163.03,
+        1412.49
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "tahoe",
+      "name": "KCXP",
+      "bounds": [
+        1965.9,
+        -1072.87,
+        2344.45,
+        -799.44
+      ]
+    },
+    {
+      "kind": "ground",
+      "region": "grand-teton",
+      "name": "grand-teton",
+      "bounds": [
+        -2815.8848012425624,
+        -3339.600000000008,
+        2815.8848012425624,
+        3339.600000000008
+      ]
+    },
+    {
+      "kind": "ground",
+      "region": "grand-teton",
+      "name": "grand-teton-far",
+      "bounds": [
+        -10950,
+        -10950,
+        10950,
+        10950
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "grand-teton",
+      "name": "KJAC",
+      "bounds": [
+        376.66,
+        1073.28,
+        620.99,
+        1434.73
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "grand-teton",
+      "name": "KDIJ",
+      "bounds": [
+        -2579.84,
+        -413.94,
+        -2219.01,
+        -85.91
+      ]
+    },
+    {
+      "kind": "ground",
+      "region": "moab",
+      "name": "moab",
+      "bounds": [
+        -3049.197900728387,
+        -3896.2000000000153,
+        3049.197900728387,
+        3896.2000000000153
+      ]
+    },
+    {
+      "kind": "ground",
+      "region": "moab",
+      "name": "moab-far",
+      "bounds": [
+        -10950,
+        -10950,
+        10950,
+        10950
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "moab",
+      "name": "KCNY",
+      "bounds": [
+        -638.86,
+        -3011.05,
+        -291.34,
+        -2665.19
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "moab",
+      "name": "UT53",
+      "bounds": [
+        2044.42,
+        -5.41,
+        2337.68,
+        278.12
+      ]
+    },
+    {
+      "kind": "ground",
+      "region": "rainier",
+      "name": "rainier",
+      "bounds": [
+        -3579.2473362507417,
+        -3729.2200000000093,
+        3579.2473362507417,
+        3729.2200000000093
+      ]
+    },
+    {
+      "kind": "ground",
+      "region": "rainier",
+      "name": "rainier-far",
+      "bounds": [
+        -10950,
+        -10950,
+        10950,
+        10950
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "rainier",
+      "name": "KPLU",
+      "bounds": [
+        -3137.03,
+        -3139.03,
+        -2933.34,
+        -2847.73
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "rainier",
+      "name": "55S",
+      "bounds": [
+        1509.24,
+        2448.11,
+        1719.68,
+        2691.56
+      ]
+    },
+    {
+      "kind": "airport",
+      "region": "rainier",
+      "name": "39P",
+      "bounds": [
+        -2983.83,
+        3074.96,
+        -2750.56,
+        3258.17
+      ]
+    }
+  ]
+}

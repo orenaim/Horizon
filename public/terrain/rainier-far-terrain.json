@@ -1,0 +1,36 @@
+{
+  "id": "rainier-far",
+  "name": "Cascade Range",
+  "source": "USGS 3DEP elevation image service",
+  "projection": "EPSG:4326",
+  "projectionReference": "rainier-terrain.json",
+  "sourceBounds": [
+    -123.32787213246652,
+    45.85134926338484,
+    -120.45212786753348,
+    47.81865073661516
+  ],
+  "samples": [
+    441,
+    441
+  ],
+  "worldSize": [
+    21900,
+    21900
+  ],
+  "worldBounds": [
+    -10950,
+    -10950,
+    10950,
+    10950
+  ],
+  "worldOrigin": [
+    0,
+    0
+  ],
+  "verticalScale": 0.1,
+  "elevationRange": [
+    -2.0709649324417114,
+    4343.525309244792
+  ]
+}

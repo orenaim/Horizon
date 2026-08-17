@@ -1,0 +1,1574 @@
+@import url("https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap");
+
+:root {
+  font-family: "Albert Sans", "Avenir Next", sans-serif;
+  color: oklch(24% 0.035 235);
+  background: oklch(95% 0.012 92);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --ink: oklch(24% 0.035 235);
+  --ink-muted: oklch(46% 0.025 235);
+  --paper: oklch(96% 0.012 92);
+  --paper-raised: oklch(98% 0.008 92);
+  --line: oklch(83% 0.018 92);
+  --navy: oklch(36% 0.082 237);
+  --navy-dark: oklch(27% 0.063 237);
+  --orange: oklch(68% 0.16 55);
+  --green: oklch(58% 0.11 154);
+  --danger: oklch(56% 0.16 28);
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 0.75rem;
+  --space-lg: 1rem;
+  --space-xl: 1.5rem;
+  --space-2xl: 2rem;
+  --space-3xl: 3rem;
+  /* Fills the map panel around the terrain; areas without a coast override it. */
+  --map-surround: #5ba1b8;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --z-hud: 20;
+  --z-panel: 30;
+  --z-toast: 50;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  min-width: 20rem;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 0.1875rem solid var(--orange);
+  outline-offset: 0.1875rem;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: var(--space-md);
+  left: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  color: var(--paper-raised);
+  background: var(--navy-dark);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  isolation: isolate;
+}
+
+.world,
+.world canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.world {
+  position: absolute;
+  inset: 0;
+  background: oklch(78% 0.08 224);
+}
+
+.world canvas.is-camera-orbitable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.world canvas.is-camera-dragging {
+  cursor: grabbing;
+}
+
+.setup {
+  position: relative;
+  z-index: var(--z-panel);
+  display: grid;
+  grid-template-columns: minmax(21rem, 31rem) 1fr;
+  width: 100%;
+  height: 100%;
+  transition: opacity 350ms var(--ease-out), transform 500ms var(--ease-out);
+}
+
+.setup.is-hidden {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(1rem);
+}
+
+.setup-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(1.5rem, 3.2vw, 3rem);
+  background: var(--paper);
+  box-shadow: 1.5rem 0 4rem oklch(28% 0.04 235 / 0.13);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.brand-mark {
+  position: relative;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0.0625rem solid var(--navy);
+  border-radius: 50%;
+}
+
+.brand-mark::before,
+.brand-mark::after {
+  position: absolute;
+  content: "";
+}
+
+.brand-mark::before {
+  inset: 0.5rem 0.2rem;
+  border-top: 0.125rem solid var(--orange);
+  transform: rotate(-9deg);
+}
+
+.brand-mark::after {
+  inset: 50% 0.45rem auto;
+  border-top: 0.0625rem solid var(--navy);
+}
+
+.brand-name,
+.eyebrow,
+.section-label,
+.metric-label,
+.key,
+.status-chip {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.brand-name {
+  font-size: 1.125rem;
+}
+
+.setup-heading {
+  display: grid;
+  gap: var(--space-xs);
+  padding-top: clamp(1.5rem, 3.5vh, 2.75rem);
+}
+
+.eyebrow {
+  color: var(--orange);
+  font-size: 0.8125rem;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+/* One short line. The form is the point of this screen, so the title sets the
+   tone and then gets out of the way. */
+h1 {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: clamp(3.375rem, calc(5vh + 0.625rem), 4.375rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.setup-form {
+  display: grid;
+  flex: 0 0 auto;
+  gap: clamp(var(--space-xl), 3vh, var(--space-2xl));
+  padding-top: var(--space-2xl);
+}
+
+.choice-group {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+/* Fieldset legends do not participate in grid gap, so space the body directly. */
+.choice-group > :not(.section-label) {
+  margin-top: var(--space-sm);
+}
+
+.section-label {
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+}
+
+.area-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm);
+}
+
+.area-option {
+  position: relative;
+  display: grid;
+  min-height: 3.5rem;
+  align-content: center;
+  gap: 0.15rem;
+  padding: var(--space-sm) var(--space-md);
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 150ms var(--ease-out), background 150ms var(--ease-out), transform 150ms var(--ease-out);
+}
+
+.area-name {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.05;
+}
+
+/* Keep a long name from running under the flag in the corner. */
+.area-option:has(.area-flag) .area-name {
+  padding-right: 2.5rem;
+}
+
+.area-place {
+  color: var(--ink-muted);
+  font-size: 0.6875rem;
+}
+
+/* Areas whose scenery has not been built yet are still selectable, so the flag
+   has to stay legible against the selected fill as well as the paper. */
+.area-flag {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.55rem;
+  color: var(--orange);
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.choice input:checked + .area-option .area-place {
+  color: oklch(87% 0.02 235);
+}
+
+.choice input:checked + .area-option .area-flag {
+  color: oklch(80% 0.13 62);
+}
+
+.aircraft-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+@media (max-width: 68rem) {
+  .aircraft-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.aircraft-strip .choice {
+  display: grid;
+  min-width: 0;
+}
+
+.choice {
+  position: relative;
+}
+
+.choice input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.aircraft-option {
+  --silhouette-cutout: var(--paper);
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: 5.25rem;
+  align-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 150ms var(--ease-out), background 150ms var(--ease-out), transform 150ms var(--ease-out);
+}
+
+.aircraft-option:hover,
+.area-option:hover {
+  border-color: var(--navy);
+  transform: translateY(-0.125rem);
+}
+
+.choice input:focus-visible + .aircraft-option,
+.choice input:focus-visible + .area-option {
+  outline: 0.1875rem solid var(--orange);
+  outline-offset: 0.1875rem;
+}
+
+.choice input:checked + .aircraft-option,
+.choice input:checked + .area-option {
+  --silhouette-cutout: var(--navy-dark);
+  color: var(--paper-raised);
+  border-color: var(--navy-dark);
+  background: var(--navy-dark);
+}
+
+.aircraft-silhouette {
+  display: block;
+  width: 100%;
+  height: 2.125rem;
+  color: currentColor;
+  overflow: visible;
+}
+
+.aircraft-code {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.aircraft-type {
+  display: none;
+  color: var(--ink-muted);
+  font-size: 0.6875rem;
+}
+
+.choice input:checked + .aircraft-option .aircraft-type {
+  color: oklch(87% 0.02 235);
+}
+
+.location-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.fuel-planner {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-md) 0;
+  border-top: 0.0625rem solid var(--line);
+  border-bottom: 0.0625rem solid var(--line);
+}
+
+.fuel-summary {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.fuel-summary > span {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.fuel-summary small {
+  color: var(--ink-muted);
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.fuel-summary strong,
+.fuel-summary output {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.fuel-summary strong {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.fuel-summary output {
+  color: var(--navy);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+#fuelRange {
+  --fuel-fill: 100%;
+  width: 100%;
+  height: 1.5rem;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+#fuelRange::-webkit-slider-runnable-track {
+  height: 0.375rem;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--orange) 0 var(--fuel-fill),
+    var(--line) var(--fuel-fill) 100%
+  );
+}
+
+#fuelRange::-moz-range-track {
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+#fuelRange::-moz-range-progress {
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--orange);
+}
+
+#fuelRange::-webkit-slider-thumb {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: -0.375rem;
+  appearance: none;
+  border: 0.1875rem solid var(--paper-raised);
+  border-radius: 50%;
+  background: var(--navy-dark);
+  box-shadow: 0 0 0 0.0625rem var(--navy-dark);
+}
+
+#fuelRange::-moz-range-thumb {
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 0.1875rem solid var(--paper-raised);
+  border-radius: 50%;
+  background: var(--navy-dark);
+  box-shadow: 0 0 0 0.0625rem var(--navy-dark);
+}
+
+.fuel-scale {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-top: -0.25rem;
+  color: var(--ink-muted);
+  font-size: 0.625rem;
+}
+
+.fuel-details {
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+/* The airport picker takes the full width; the two toggles share the row below. */
+.location-row .select-like {
+  grid-column: 1 / -1;
+}
+
+.select-like {
+  display: flex;
+  width: 100%;
+  min-height: 3.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 0 var(--space-lg);
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--paper-raised);
+  cursor: pointer;
+}
+
+.select-like:hover:not(:disabled) {
+  border-color: var(--navy);
+}
+
+.select-like:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* The only airfield in the area: inert, but not greyed out as if unavailable. */
+.select-like.is-sole:disabled {
+  opacity: 1;
+}
+
+.select-like.is-sole .cycle-icon {
+  visibility: hidden;
+}
+
+.airport-copy {
+  display: grid;
+  gap: 0.125rem;
+  text-align: left;
+}
+
+.airport-code {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.airport-name {
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+}
+
+.cycle-icon {
+  font-size: 1.2rem;
+}
+
+.toggle {
+  display: inline-flex;
+  min-width: 7.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: 0 var(--space-md);
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+
+.toggle[aria-pressed="true"] {
+  color: var(--paper-raised);
+  border-color: var(--navy);
+  background: var(--navy);
+}
+
+.toggle:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.launch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  padding-top: var(--space-sm);
+}
+
+.launch {
+  display: inline-flex;
+  min-height: 3.5rem;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  padding: 0 var(--space-lg);
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--paper-raised);
+  background: var(--orange);
+  box-shadow: 0 0.75rem 1.5rem oklch(48% 0.12 55 / 0.2);
+  cursor: pointer;
+  font-weight: 700;
+  transition: transform 150ms var(--ease-out), background 150ms var(--ease-out);
+}
+
+.launch:hover:not(:disabled) {
+  background: oklch(63% 0.17 52);
+  transform: translateY(-0.125rem);
+}
+
+.launch:active:not(:disabled) {
+  transform: translateY(0.0625rem);
+}
+
+.launch:disabled {
+  color: var(--ink-muted);
+  background: transparent;
+  box-shadow: inset 0 0 0 0.0625rem var(--line);
+  cursor: default;
+}
+
+.condition {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 0.125rem;
+  color: var(--ink-muted);
+  font-size: 0.6875rem;
+  text-align: right;
+}
+
+.condition strong {
+  color: var(--ink);
+  font-size: 0.75rem;
+}
+
+.setup-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-xs) var(--space-lg);
+  margin-top: auto;
+  padding-top: var(--space-xl);
+  color: var(--ink-muted);
+  font-size: 0.6875rem;
+}
+
+/* Attribution has to travel with the work — CC BY requires it — so it lives on
+   the page rather than only in the repository, one click from the footer. */
+.credits-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.credits-link:hover {
+  color: var(--ink);
+}
+
+.credits {
+  max-width: 34rem;
+  padding: var(--space-xl);
+  border: 0;
+  border-radius: var(--radius-md, 10px);
+  background: var(--paper, #f5f2ea);
+  color: var(--ink);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+.credits::backdrop {
+  background: rgb(12 18 24 / 55%);
+}
+
+.credits h2 {
+  margin: 0 0 var(--space-lg);
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.credits dl {
+  margin: 0;
+}
+
+.credits dt {
+  margin-top: var(--space-md);
+  color: var(--ink-muted);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.credits dt:first-child {
+  margin-top: 0;
+}
+
+.credits dd {
+  margin: 0.15rem 0 0;
+}
+
+.credits a {
+  color: inherit;
+  text-underline-offset: 2px;
+}
+
+.credits-close {
+  margin-top: var(--space-xl);
+  padding: 0.45rem 1.1rem;
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Column two of the setup grid, over the live preview. The preview keeps
+   circling the last area that has scenery, so selecting one that does not yet
+   exist washes it out rather than presenting it as that place. */
+.preview-veil {
+  z-index: 1;
+  grid-column: 2;
+  opacity: 0;
+  background:
+    radial-gradient(120% 90% at 70% 55%, oklch(31% 0.05 235 / 0.8), oklch(21% 0.04 235 / 0.96));
+  pointer-events: none;
+  transition: opacity 450ms var(--ease-out);
+}
+
+.setup.is-unbuilt .preview-veil {
+  opacity: 1;
+}
+
+.preview-copy {
+  position: absolute;
+  z-index: 2;
+  right: clamp(1.5rem, 4vw, 4rem);
+  bottom: clamp(1.5rem, 4vw, 4rem);
+  display: grid;
+  justify-items: end;
+  gap: var(--space-sm);
+  color: var(--paper-raised);
+  text-align: right;
+  text-shadow: 0 0.125rem 1.25rem oklch(20% 0.05 235 / 0.45);
+}
+
+.preview-copy h2 {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: clamp(2.5rem, 6vw, 6rem);
+  font-weight: 600;
+  line-height: 0.9;
+  letter-spacing: -0.025em;
+  text-transform: uppercase;
+}
+
+.preview-copy p {
+  max-width: 32ch;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.status-chip {
+  padding: 0.35rem 0.55rem;
+  border: 0.0625rem solid oklch(92% 0.02 92);
+  border-radius: 999px;
+  font-size: 0.6875rem;
+}
+
+.hud {
+  position: absolute;
+  z-index: var(--z-hud);
+  inset: 0;
+  display: grid;
+  grid-template: "top top" auto "left right" 1fr "bottom bottom" auto / 1fr 1fr;
+  padding: var(--space-lg);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 300ms var(--ease-out);
+}
+
+.hud.is-visible {
+  opacity: 1;
+}
+
+.hud button {
+  pointer-events: auto;
+}
+
+.hud-top {
+  grid-area: top;
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.flight-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--paper-raised);
+  text-shadow: 0 0.125rem 0.75rem oklch(20% 0.04 235 / 0.35);
+}
+
+.flight-brand .brand-mark {
+  width: 2rem;
+  height: 2rem;
+  border-color: currentColor;
+}
+
+.flight-brand .brand-mark::after {
+  border-color: currentColor;
+}
+
+.hud-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.hud-button {
+  min-height: 2.75rem;
+  padding: 0 var(--space-md);
+  border: 0.0625rem solid oklch(92% 0.02 92);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: var(--paper-raised);
+  box-shadow: 0 0.25rem 1rem oklch(20% 0.04 235 / 0.12);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.hud-button:hover {
+  background: var(--paper);
+  transform: translateY(-0.0625rem);
+}
+
+.telemetry {
+  grid-area: bottom;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 0.0625rem;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 180ms var(--ease-out), transform 220ms var(--ease-out);
+}
+
+.is-cockpit .telemetry {
+  opacity: 0;
+  transform: translateY(0.5rem);
+}
+
+.metric {
+  display: grid;
+  min-width: 5rem;
+  gap: 0.125rem;
+  padding: var(--space-sm) var(--space-md);
+  color: var(--paper-raised);
+  background: oklch(23% 0.04 235 / 0.88);
+  text-align: center;
+  backdrop-filter: blur(0.5rem);
+}
+
+.metric:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.metric:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.metric-value {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 1.375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.metric-label {
+  color: oklch(80% 0.025 235);
+  font-size: 0.625rem;
+}
+
+.metric--fuel.is-low {
+  color: oklch(95% 0.055 82);
+  background: oklch(38% 0.105 48 / 0.94);
+}
+
+.metric--fuel.is-empty {
+  color: oklch(96% 0.035 28);
+  background: oklch(36% 0.12 28 / 0.96);
+}
+
+.control-hint {
+  position: absolute;
+  z-index: var(--z-panel);
+  left: var(--space-lg);
+  bottom: calc(var(--space-lg) + 10.5rem);
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: var(--space-sm) var(--space-lg);
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: var(--paper-raised);
+  box-shadow: 0 0.5rem 2rem oklch(20% 0.04 235 / 0.15);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(0.5rem);
+  transition: opacity 250ms var(--ease-out), transform 250ms var(--ease-out);
+}
+
+.mini-map {
+  position: absolute;
+  z-index: var(--z-panel);
+  left: var(--space-lg);
+  bottom: var(--space-lg);
+  width: 14rem;
+  height: 9rem;
+  padding: 0;
+  overflow: hidden;
+  border: 0.0625rem solid oklch(98% 0.01 90 / 0.7);
+  border-radius: var(--radius-sm);
+  background: var(--map-surround);
+  box-shadow: 0 0.75rem 2.5rem oklch(20% 0.04 235 / 0.24);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(0.75rem);
+  transition: opacity 250ms var(--ease-out), transform 250ms var(--ease-out), box-shadow 180ms ease;
+}
+
+.mini-map.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.mini-map:hover {
+  box-shadow: 0 1rem 3rem oklch(20% 0.04 235 / 0.32);
+}
+
+.mini-map canvas,
+.map-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mini-map-label {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.25rem;
+  color: var(--paper-raised);
+  background: oklch(23% 0.04 235 / 0.82);
+  font-size: 0.5625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  backdrop-filter: blur(0.35rem);
+}
+
+.mini-map-label strong {
+  font-size: 0.6875rem;
+}
+
+.mini-map-north {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.6rem;
+  display: grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--navy-dark);
+  background: oklch(98% 0.01 90 / 0.88);
+  font-size: 0.625rem;
+  font-weight: 800;
+}
+
+.map-overlay {
+  position: absolute;
+  z-index: calc(var(--z-panel) + 5);
+  inset: clamp(1rem, 4vw, 3rem);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  box-shadow: 0 2rem 6rem oklch(14% 0.04 235 / 0.42);
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.985);
+  transition: opacity 220ms var(--ease-out), transform 220ms var(--ease-out);
+}
+
+.map-overlay.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+.map-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xl);
+  padding: var(--space-lg) var(--space-xl);
+}
+
+.map-header h2 {
+  margin-top: 0.2rem;
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.map-close {
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: 0 var(--space-lg);
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--paper-raised);
+  background: var(--navy);
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.map-stage {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--map-surround);
+}
+
+.map-key {
+  position: absolute;
+  right: var(--space-md);
+  bottom: var(--space-md);
+  display: flex;
+  gap: var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: oklch(98% 0.01 90 / 0.88);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  backdrop-filter: blur(0.4rem);
+}
+
+.map-key span {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.map-key i {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.key-aircraft {
+  border: 0.125rem solid var(--accent);
+  background: var(--paper-raised);
+  clip-path: polygon(50% 0, 100% 100%, 50% 72%, 0 100%);
+}
+
+.key-airport {
+  border-radius: 0.125rem;
+  background: var(--navy);
+}
+
+.map-readout {
+  display: grid;
+  grid-template-columns: 2fr repeat(3, 1fr);
+  border-top: 0.0625rem solid var(--line);
+}
+
+.map-readout > span {
+  display: grid;
+  gap: 0.2rem;
+  padding: var(--space-md) var(--space-xl);
+  border-right: 0.0625rem solid var(--line);
+}
+
+.map-readout > span:last-child {
+  border-right: 0;
+}
+
+.map-readout small {
+  color: var(--muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.map-readout strong {
+  color: var(--navy-dark);
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.control-hint.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hint-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.6875rem;
+}
+
+.key {
+  display: inline-grid;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  border: 0.0625rem solid var(--line);
+  border-radius: 0.25rem;
+  color: var(--navy-dark);
+  background: var(--paper);
+  font-size: 0.625rem;
+}
+
+.toast {
+  position: fixed;
+  z-index: var(--z-toast);
+  top: var(--space-xl);
+  left: 50%;
+  max-width: min(30rem, calc(100% - 2rem));
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-sm);
+  color: var(--paper-raised);
+  background: var(--navy-dark);
+  box-shadow: 0 0.5rem 2rem oklch(20% 0.04 235 / 0.22);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -0.75rem);
+  transition: opacity 250ms var(--ease-out), transform 250ms var(--ease-out);
+}
+
+.toast.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.pause-panel {
+  position: absolute;
+  z-index: var(--z-panel);
+  top: 50%;
+  left: 50%;
+  display: none;
+  width: min(26rem, calc(100% - 2rem));
+  gap: var(--space-xl);
+  padding: var(--space-2xl);
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  box-shadow: 0 1.5rem 5rem oklch(20% 0.04 235 / 0.28);
+  transform: translate(-50%, -50%);
+}
+
+.pause-panel.is-visible {
+  display: grid;
+}
+
+.pause-panel h2 {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 2.5rem;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.pause-actions {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.pause-actions button {
+  min-height: 3rem;
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--paper-raised);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.pause-actions button:first-child {
+  color: var(--paper-raised);
+  border-color: var(--navy);
+  background: var(--navy);
+}
+
+/* Darkens the edges of the frame the moment a crash starts, before the
+   outcome panel arrives. */
+.crash-vignette {
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 35%,
+    oklch(18% 0.05 40 / 0.55) 100%
+  );
+  pointer-events: none;
+  transition: opacity 1200ms var(--ease-out);
+}
+
+.crash-vignette.is-visible {
+  opacity: 1;
+}
+
+/* Sits to one side rather than over the middle, so the wreck it is reporting
+   on stays in view behind it. */
+.crash-panel {
+  position: absolute;
+  z-index: var(--z-panel);
+  top: 50%;
+  left: clamp(1rem, 4vw, 3.5rem);
+  display: none;
+  width: min(27rem, calc(100% - 2rem));
+  gap: var(--space-lg);
+  padding: var(--space-2xl);
+  border: 0.0625rem solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  box-shadow: 0 1.5rem 5rem oklch(20% 0.04 235 / 0.35);
+  transform: translateY(-50%);
+}
+
+.crash-panel.is-visible {
+  display: grid;
+  animation: crash-panel-in 420ms var(--ease-out) both;
+}
+
+@keyframes crash-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-46%) scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crash-panel.is-visible {
+    animation: none;
+  }
+
+  .crash-vignette {
+    transition: none;
+  }
+}
+
+.crash-heading {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.crash-panel h2 {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 2.75rem;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.crash-panel[data-tone="lost"] .eyebrow {
+  color: var(--danger);
+}
+
+.crash-panel[data-tone="survived"] .eyebrow {
+  color: var(--green);
+}
+
+.crash-cause {
+  color: var(--ink-muted);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.crash-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+  margin: 0;
+  padding: var(--space-lg) 0;
+  border-top: 0.0625rem solid var(--line);
+  border-bottom: 0.0625rem solid var(--line);
+}
+
+.crash-stats div {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.crash-stats dt {
+  color: var(--ink-muted);
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.crash-stats dd {
+  margin: 0;
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-size: 1.375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cockpit-frame {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+}
+
+.cockpit-frame.is-visible {
+  display: block;
+}
+
+.cockpit-frame::before {
+  position: absolute;
+  inset: auto 0 0;
+  height: 9%;
+  content: "";
+  background: linear-gradient(to bottom, transparent, oklch(12% 0.018 235 / 0.18));
+}
+
+.cockpit-frame::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  box-shadow:
+    inset 0 0 3rem oklch(13% 0.018 235 / 0.09),
+    inset 0 0.15rem 0.5rem oklch(96% 0.012 214 / 0.05);
+}
+
+@media (min-width: 80rem) {
+  .aircraft-option {
+    min-height: 6.75rem;
+  }
+
+  .aircraft-type {
+    display: block;
+  }
+}
+
+@media (max-width: 52rem) {
+  .setup {
+    grid-template-columns: minmax(20rem, 26rem) 1fr;
+  }
+
+  .setup-panel {
+    padding: var(--space-xl);
+  }
+
+  .setup-heading {
+    padding-top: var(--space-lg);
+  }
+
+  .condition,
+  .setup-footer > span:first-child {
+    display: none;
+  }
+
+  .preview-copy {
+    right: var(--space-xl);
+    bottom: var(--space-xl);
+  }
+}
+
+@media (max-width: 42rem) {
+  .setup {
+    display: block;
+    overflow: auto;
+    background: var(--paper);
+  }
+
+  .setup-panel {
+    width: 100%;
+    min-height: 100%;
+  }
+
+  .preview-copy,
+  .preview-veil {
+    display: none;
+  }
+
+  .telemetry {
+    justify-content: stretch;
+  }
+
+  .metric {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .control-hint {
+    display: none;
+  }
+
+  .mini-map {
+    left: var(--space-md);
+    bottom: var(--space-md);
+    width: 11rem;
+    height: 7.25rem;
+  }
+
+  .mini-map-label span {
+    display: none;
+  }
+
+  .map-overlay {
+    inset: 0.75rem;
+  }
+
+  .map-header {
+    padding: var(--space-md);
+  }
+
+  .map-header h2 {
+    font-size: 1.75rem;
+  }
+
+  .map-close {
+    min-height: 2.75rem;
+    padding: 0 var(--space-md);
+  }
+
+  .map-readout {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .map-readout > span {
+    padding: var(--space-sm);
+  }
+
+  .map-readout > span:first-child {
+    display: none;
+  }
+
+  .map-readout strong {
+    font-size: 1rem;
+  }
+}
+
+@media (max-height: 50rem) and (min-width: 42.01rem) {
+  .setup-panel {
+    padding-top: var(--space-xl);
+    padding-bottom: var(--space-xl);
+  }
+
+  .setup-heading {
+    padding-top: var(--space-lg);
+  }
+
+  h1 {
+    font-size: clamp(3.125rem, calc(5.5vh + 0.625rem), 3.625rem);
+  }
+
+  .setup-form {
+    gap: var(--space-xl);
+    padding-top: var(--space-xl);
+  }
+
+  .aircraft-option {
+    min-height: 4.75rem;
+  }
+
+  .fuel-planner {
+    gap: var(--space-xs);
+    padding: var(--space-sm) 0;
+  }
+
+  .setup-footer {
+    padding-top: var(--space-md);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dev-only overlay for `?inspect=1`. */
+.model-inspector {
+  position: fixed;
+  right: var(--space-lg, 16px);
+  bottom: var(--space-lg, 16px);
+  z-index: 40;
+  width: 21rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  background: rgb(16 22 28 / 92%);
+  color: #eef2f4;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+}
+
+.model-inspector h3 {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.model-inspector .hint {
+  margin: 0.35rem 0 0.7rem;
+  opacity: 0.6;
+}
+
+.model-inspector ol {
+  margin: 0;
+  padding-left: 1.4rem;
+}
+
+.model-inspector li {
+  margin-bottom: 0.25rem;
+  word-break: break-word;
+}
+
+.model-inspector button {
+  margin-top: 0.8rem;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.model-inspector button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

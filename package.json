@@ -1,0 +1,25 @@
+{
+  "name": "horizon-flight",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "terrain:build": "node scripts/build-oahu-terrain.mjs && node scripts/build-kauai-terrain.mjs",
+    "terrain:oahu": "node scripts/build-oahu-terrain.mjs",
+    "terrain:kauai": "node scripts/build-kauai-terrain.mjs",
+    "airports:build": "node scripts/build-airports.mjs",
+    "imagery:build": "node scripts/build-imagery.mjs",
+    "terrain:grandcanyon": "node --max-old-space-size=4096 scripts/build-grand-canyon-terrain.mjs",
+    "terrain:area": "node scripts/build-area-terrain.mjs",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "geotiff": "^3.0.5",
+    "three": "^0.178.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.6"
+  }
+}

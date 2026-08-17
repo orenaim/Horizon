@@ -1,0 +1,36 @@
+{
+  "id": "grand-canyon-far",
+  "name": "Colorado Plateau",
+  "source": "USGS 3DEP elevation image service",
+  "projection": "EPSG:4269",
+  "projectionReference": "grand-canyon-terrain.json",
+  "sourceBounds": [
+    -113.63,
+    35.160000000000004,
+    -111.19,
+    37.12
+  ],
+  "samples": [
+    441,
+    439
+  ],
+  "worldSize": [
+    21935.5077591308,
+    21818.719999999998
+  ],
+  "worldBounds": [
+    -10967.7538795654,
+    -10909.359999999999,
+    10967.7538795654,
+    10909.359999999999
+  ],
+  "worldOrigin": [
+    0,
+    0
+  ],
+  "verticalScale": 0.1,
+  "elevationRange": [
+    444.02862548828125,
+    3674.61572265625
+  ]
+}
