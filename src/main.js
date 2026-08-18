@@ -955,6 +955,35 @@ document.querySelector("#app").innerHTML = `
         <span class="metric"><span class="metric-value" id="gearValue">Down</span><span class="metric-label">Gear</span></span>
         <span class="metric"><span class="metric-value" id="brakeValue">Off</span><span class="metric-label">Brakes</span></span>
       </div>
+
+      <div class="touch touch--left" id="touchLeft" aria-label="Attitude controls">
+        <div class="tilt-pad" id="tiltPad">
+          <button class="touch-key tilt-up" type="button" data-axis="pitch" data-value="1" aria-label="Pitch up">▲</button>
+          <button class="touch-key tilt-left" type="button" data-axis="roll" data-value="1" aria-label="Roll left">◀</button>
+          <span class="tilt-hub" aria-hidden="true"></span>
+          <button class="touch-key tilt-right" type="button" data-axis="roll" data-value="-1" aria-label="Roll right">▶</button>
+          <button class="touch-key tilt-down" type="button" data-axis="pitch" data-value="-1" aria-label="Pitch down">▼</button>
+        </div>
+        <div class="touch-row">
+          <button class="touch-toggle" id="gyroButton" type="button" aria-pressed="false">Tilt&nbsp;device</button>
+          <button class="touch-toggle touch-toggle--minor" id="gyroLevelButton" type="button" hidden>Set&nbsp;level</button>
+        </div>
+      </div>
+
+      <div class="touch touch--right" id="touchRight" aria-label="Engine and configuration controls">
+        <div class="touch-stack">
+          <button class="touch-key touch-key--wide" type="button" data-axis="throttle" data-value="1" aria-label="Increase throttle">Thr&nbsp;▲</button>
+          <button class="touch-key touch-key--wide" type="button" data-axis="throttle" data-value="-1" aria-label="Decrease throttle">Thr&nbsp;▼</button>
+        </div>
+        <div class="touch-stack">
+          <button class="touch-key touch-key--wide" type="button" data-action="flaps-down" aria-label="Extend flaps">Flap&nbsp;▼</button>
+          <button class="touch-key touch-key--wide" type="button" data-action="flaps-up" aria-label="Retract flaps">Flap&nbsp;▲</button>
+        </div>
+        <div class="touch-stack">
+          <button class="touch-toggle" id="touchGear" type="button" data-action="gear" aria-pressed="true">Gear</button>
+          <button class="touch-toggle" id="touchBrake" type="button" data-action="brakes" aria-pressed="false">Brakes</button>
+        </div>
+      </div>
     </section>
 
     <aside id="controlHint" class="control-hint" aria-label="Flight controls">
@@ -1056,6 +1085,11 @@ class FlightWorld {
 
     this.clock = new THREE.Clock();
     this.keys = new Set();
+    // Continuous control from anything that is not the keyboard: the on-screen
+    // tilt pad, or the device's own orientation. Merged with the keys each
+    // frame rather than replacing them, so a Bluetooth keyboard on an iPad
+    // keeps working alongside the touch controls.
+    this.stick = { pitch: 0, roll: 0, throttle: 0 };
     this.running = false;
     this.paused = false;
     this.cameraMode = "chase";
@@ -2877,22 +2911,46 @@ class FlightWorld {
       if (event.key.toLowerCase() === "c" && this.running) toggleCamera();
       if (event.key === "Escape" && mapOpen) closeExpandedMap();
       else if (event.key.toLowerCase() === "p" || event.key === "Escape") togglePause();
-      if (event.key.toLowerCase() === "g" && this.running) {
-        if (AIRCRAFT[this.aircraftId].code === "C172") showToast("The C172 has fixed landing gear");
-        else this.state.gear = !this.state.gear;
-      }
-      if (event.key.toLowerCase() === "f" && this.running) this.state.flaps = Math.min(30, this.state.flaps + 10);
-      if (event.key.toLowerCase() === "v" && this.running) this.state.flaps = Math.max(0, this.state.flaps - 10);
-      if (event.key.toLowerCase() === "b" && this.running) {
-        this.state.airbrake = !this.state.airbrake;
-        const ground = !this.airborne;
-        showToast(this.state.airbrake
-          ? (ground ? "Wheel brakes on" : "Speedbrake extended")
-          : (ground ? "Wheel brakes released" : "Speedbrake retracted"));
-      }
+      if (event.key.toLowerCase() === "g") this.toggleGear();
+      if (event.key.toLowerCase() === "f") this.adjustFlaps(10);
+      if (event.key.toLowerCase() === "v") this.adjustFlaps(-10);
+      if (event.key.toLowerCase() === "b") this.toggleBrakes();
       if (event.key.toLowerCase() === "r" && this.running) rewind();
     });
     window.addEventListener("keyup", (event) => this.keys.delete(event.key.toLowerCase()));
+  }
+
+  // ---------------------------------------------------------------------
+  // Discrete controls
+  //
+  // Shared by the keyboard and the on-screen buttons so the two cannot drift
+  // apart — the fixed-gear warning and the brake wording are part of the
+  // action, not of one input path.
+  // ---------------------------------------------------------------------
+
+  toggleGear() {
+    if (!this.running) return;
+    if (AIRCRAFT[this.aircraftId].code === "C172") {
+      showToast("The C172 has fixed landing gear");
+      return;
+    }
+    this.state.gear = !this.state.gear;
+  }
+
+  adjustFlaps(step) {
+    if (!this.running) return;
+    this.state.flaps = THREE.MathUtils.clamp(this.state.flaps + step, 0, 30);
+  }
+
+  toggleBrakes() {
+    if (!this.running) return;
+    this.state.airbrake = !this.state.airbrake;
+    // The same control is wheel brakes on the ground and a speedbrake in the
+    // air, so it has to say which one it just did.
+    const ground = !this.airborne;
+    showToast(this.state.airbrake
+      ? (ground ? "Wheel brakes on" : "Speedbrake extended")
+      : (ground ? "Wheel brakes released" : "Speedbrake retracted"));
   }
 
   resize() {
@@ -3184,12 +3242,19 @@ class FlightWorld {
     if (!this.running || this.paused || this.crashed) return;
     const spec = AIRCRAFT[this.aircraftId];
     const controlRate = spec.controlRate ?? 0.62;
-    const targetPitch = (this.keys.has("w") ? 1 : 0) - (this.keys.has("s") ? 1 : 0);
-    const targetRoll = (this.keys.has("a") ? 1 : 0) - (this.keys.has("d") ? 1 : 0);
+    const clampAxis = (value) => THREE.MathUtils.clamp(value, -1, 1);
+    const targetPitch = clampAxis(
+      (this.keys.has("w") ? 1 : 0) - (this.keys.has("s") ? 1 : 0) + this.stick.pitch);
+    const targetRoll = clampAxis(
+      (this.keys.has("a") ? 1 : 0) - (this.keys.has("d") ? 1 : 0) + this.stick.roll);
     const rudder = (this.keys.has("q") ? 1 : 0) - (this.keys.has("e") ? 1 : 0);
     if (this.state.engineRunning) {
-      if (this.keys.has("arrowup")) this.state.throttle = Math.min(1, this.state.throttle + dt * 0.35);
-      if (this.keys.has("arrowdown")) this.state.throttle = Math.max(0, this.state.throttle - dt * 0.35);
+      const throttleInput = clampAxis(
+        (this.keys.has("arrowup") ? 1 : 0) - (this.keys.has("arrowdown") ? 1 : 0) + this.stick.throttle);
+      if (throttleInput !== 0) {
+        this.state.throttle = THREE.MathUtils.clamp(
+          this.state.throttle + dt * 0.35 * throttleInput, 0, 1);
+      }
 
       const burnRate = THREE.MathUtils.lerp(
         spec.idleFuelBurn,
@@ -4285,6 +4350,251 @@ document.querySelector("#flightForm").addEventListener("submit", (event) => {
   showToast(fuelFraction <= 0
     ? "No usable fuel · engine off"
     : airStart ? "Airborne east of the runway" : "Increase throttle to begin your takeoff roll");
+});
+
+// ---------------------------------------------------------------------------
+// Touch controls
+// ---------------------------------------------------------------------------
+
+/**
+ * Wires one on-screen control.
+ *
+ * Held keys set an axis for as long as a finger is down; tapped keys fire once.
+ * Either way the pointer is captured, so a finger that slides off the button
+ * still delivers its `pointerup` here — without that, dragging off a held
+ * control leaves the axis stuck on and the aircraft rolls into the ground.
+ */
+function bindTouchControl(button, { onPress, onRelease }) {
+  const release = (event) => {
+    if (!button.classList.contains("is-held")) return;
+    button.classList.remove("is-held");
+    try {
+      if (button.hasPointerCapture?.(event.pointerId)) button.releasePointerCapture(event.pointerId);
+    } catch {
+      // The pointer is already gone; letting go is all that mattered.
+    }
+    onRelease?.();
+  };
+  button.addEventListener("pointerdown", (event) => {
+    // A second finger arriving on an already-held button would double-fire.
+    if (button.classList.contains("is-held")) return;
+    event.preventDefault();
+    button.classList.add("is-held");
+    onPress?.();
+    // Capture last, and defensively: it throws NotFoundError when the pointer
+    // is no longer active, which can happen between the browser queueing the
+    // event and this handler running. Doing it before `onPress` would swallow
+    // the press, and would leave `is-held` set with no release to clear it —
+    // wedging the button shut for good.
+    try {
+      button.setPointerCapture(event.pointerId);
+    } catch {
+      // Not capturable. Release still arrives through pointerup or pointercancel.
+    }
+  });
+  button.addEventListener("pointerup", release);
+  button.addEventListener("pointercancel", release);
+  // Losing capture to a system gesture — the iOS control centre swipe, a call
+  // arriving — has to count as letting go.
+  button.addEventListener("lostpointercapture", release);
+  // Buttons stay out of the tab order: they exist for fingers, and the same
+  // actions already have keys.
+  button.tabIndex = -1;
+}
+
+for (const button of document.querySelectorAll(".touch [data-axis]")) {
+  const axis = button.dataset.axis;
+  const value = Number(button.dataset.value);
+  bindTouchControl(button, {
+    onPress: () => { world.stick[axis] = value; },
+    onRelease: () => { if (world.stick[axis] === value) world.stick[axis] = 0; },
+  });
+}
+
+const touchActions = {
+  "flaps-down": () => world.adjustFlaps(10),
+  "flaps-up": () => world.adjustFlaps(-10),
+  gear: () => world.toggleGear(),
+  brakes: () => world.toggleBrakes(),
+};
+for (const button of document.querySelectorAll(".touch [data-action]")) {
+  bindTouchControl(button, { onPress: touchActions[button.dataset.action] });
+}
+
+// Gear and brakes are states rather than momentary actions, so the buttons
+// track the model — including a gear command the C172 refuses.
+const touchGear = document.querySelector("#touchGear");
+const touchBrake = document.querySelector("#touchBrake");
+setInterval(() => {
+  if (!world.running) return;
+  touchGear.setAttribute("aria-pressed", String(world.state.gear));
+  touchBrake.setAttribute("aria-pressed", String(world.state.airbrake));
+}, 120);
+
+// ---------------------------------------------------------------------------
+// Tilt-to-fly
+//
+// The device's own attitude drives pitch and roll. Three things make this
+// usable rather than a novelty:
+//
+//   Permission. iOS 13 and later refuse orientation events unless asked from
+//   inside a user gesture, and the promise must be created in the tap itself —
+//   awaiting anything first loses the gesture and the prompt never appears.
+//
+//   A captured neutral. Nobody flies holding a tablet flat on its back, so the
+//   attitude at the moment of calibration becomes zero and everything is
+//   measured against it.
+//
+//   Screen rotation. `beta` and `gamma` are reported in the device's own frame,
+//   which stops matching the screen the moment it rotates, so they are turned
+//   back into screen axes before use.
+// ---------------------------------------------------------------------------
+
+const gyroButton = document.querySelector("#gyroButton");
+const gyroLevelButton = document.querySelector("#gyroLevelButton");
+const touchLeft = document.querySelector("#touchLeft");
+
+// Degrees of tilt away from neutral for full deflection, and the slack around
+// neutral that a hand cannot help but wander through.
+const GYRO_RANGE_DEGREES = 28;
+const GYRO_DEADZONE_DEGREES = 3;
+// Which way each axis answers a tilt. See the mapping in `onDeviceOrientation`.
+const GYRO_PITCH_SENSE = 1;
+const GYRO_ROLL_SENSE = -1;
+
+const gyro = { active: false, neutral: null, latest: null };
+
+/**
+ * Device orientation expressed in screen axes, whichever way it is held.
+ *
+ * Returned in a fixed convention: `pitch` is degrees the top of the screen is
+ * tilted back toward the reader, `roll` is degrees the right of the screen is
+ * dipped. In portrait those are `beta` and `gamma` directly — the spec's
+ * rotations are intrinsic Z-X'-Y'', so a positive `beta` lifts the top of the
+ * device and a positive `gamma` swings the screen normal to the right, which
+ * puts the right edge down. Rotating the screen permutes the two.
+ */
+function screenTilt({ beta, gamma }) {
+  const angle = screen.orientation?.angle ?? window.orientation ?? 0;
+  switch (angle) {
+    case 90: return { pitch: -gamma, roll: beta };
+    case 180: return { pitch: -beta, roll: -gamma };
+    case 270:
+    case -90: return { pitch: gamma, roll: -beta };
+    default: return { pitch: beta, roll: gamma };
+  }
+}
+
+function onDeviceOrientation(event) {
+  if (event.beta == null || event.gamma == null) return;
+  gyro.latest = screenTilt(event);
+  if (!gyro.active || !gyro.neutral) return;
+  const away = (value) => {
+    const past = Math.abs(value) - GYRO_DEADZONE_DEGREES;
+    if (past <= 0) return 0;
+    return THREE.MathUtils.clamp((Math.sign(value) * past) / GYRO_RANGE_DEGREES, -1, 1);
+  };
+  // Held like a yoke: lean the device back to raise the nose, dip an edge to
+  // bank that way. The flight model reads positive pitch as nose up and
+  // positive roll as left wing down, so the roll sense is opposite to the
+  // screen convention above and the pitch sense matches it.
+  //
+  // These two signs are the part that could not be checked without hardware.
+  // If an axis flies backwards on a real device, flip the one constant.
+  world.stick.pitch = GYRO_PITCH_SENSE * away(gyro.latest.pitch - gyro.neutral.pitch);
+  world.stick.roll = GYRO_ROLL_SENSE * away(gyro.latest.roll - gyro.neutral.roll);
+}
+
+function calibrateGyro() {
+  if (!gyro.latest) return false;
+  gyro.neutral = { ...gyro.latest };
+  world.stick.pitch = 0;
+  world.stick.roll = 0;
+  return true;
+}
+
+function stopGyro(message) {
+  gyro.active = false;
+  gyro.neutral = null;
+  window.removeEventListener("deviceorientation", onDeviceOrientation);
+  world.stick.pitch = 0;
+  world.stick.roll = 0;
+  gyroButton.setAttribute("aria-pressed", "false");
+  gyroLevelButton.hidden = true;
+  touchLeft.classList.remove("is-gyro");
+  if (message) showToast(message);
+}
+
+async function startGyro() {
+  if (typeof DeviceOrientationEvent === "undefined") {
+    showToast("This device has no tilt sensor");
+    return;
+  }
+  // Must be requested straight out of the tap, before any await.
+  const ask = DeviceOrientationEvent.requestPermission?.();
+  if (ask) {
+    let granted = false;
+    try {
+      granted = (await ask) === "granted";
+    } catch {
+      granted = false;
+    }
+    if (!granted) {
+      showToast("Motion access refused — using the tilt pad");
+      return;
+    }
+  }
+
+  window.addEventListener("deviceorientation", onDeviceOrientation);
+  gyro.active = true;
+  gyroButton.setAttribute("aria-pressed", "true");
+  gyroLevelButton.hidden = false;
+  touchLeft.classList.add("is-gyro");
+
+  // The first reading can be a frame or two behind the listener, so calibrate
+  // once one has actually arrived rather than against nothing.
+  const settle = setInterval(() => {
+    if (!gyro.active) return clearInterval(settle);
+    if (calibrateGyro()) {
+      clearInterval(settle);
+      showToast("Tilt control on — hold as you are, then fly");
+    }
+  }, 60);
+  setTimeout(() => {
+    clearInterval(settle);
+    if (gyro.active && !gyro.neutral) stopGyro("No tilt readings — using the tilt pad");
+  }, 1500);
+}
+
+gyroButton.addEventListener("click", () => {
+  if (gyro.active) stopGyro("Tilt control off");
+  else startGyro();
+});
+
+gyroLevelButton.addEventListener("click", () => {
+  showToast(calibrateGyro() ? "Level set" : "No tilt reading yet");
+});
+
+// A rotated screen means the axes it was calibrated against no longer apply.
+screen.orientation?.addEventListener?.("change", () => {
+  if (gyro.active) {
+    gyro.neutral = null;
+    setTimeout(() => {
+      if (gyro.active && calibrateGyro()) showToast("Screen rotated — level reset");
+    }, 250);
+  }
+});
+
+// Leaving the flight must not strand a control on.
+function releaseTouchControls() {
+  world.stick.pitch = 0;
+  world.stick.roll = 0;
+  world.stick.throttle = 0;
+  for (const held of document.querySelectorAll(".touch .is-held")) held.classList.remove("is-held");
+}
+window.addEventListener("blur", releaseTouchControls);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) releaseTouchControls();
 });
 
 document.querySelector("#cameraButton").addEventListener("click", toggleCamera);

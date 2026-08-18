@@ -27,6 +27,21 @@ Open `http://127.0.0.1:5173`.
 - `P` or `Esc`: pause
 - `R`: rewind five seconds
 
+### Touch
+
+On a touch device the keyboard legend is replaced by on-screen controls: a pitch
+and roll pad on the left, and throttle, flaps, gear and brakes on the right.
+Rudder has no button of its own; on the ground the roll input also steers the
+nosewheel, which is what it is needed for.
+
+**Tilt device** swaps the left-hand pad for the device's own orientation sensor.
+The angle you are holding the device at when you enable it becomes level, so it
+works lying flat on a table or propped up on your lap; **Set level** re-zeroes it
+from wherever you are now, and rotating the device re-zeroes it automatically.
+Tilting roughly 28° from neutral in either axis is full deflection. iOS asks for
+motion-sensor permission the first time, which is why the button has to be
+tapped rather than gyro being on by default.
+
 ## Current scope
 
 The playable prototype includes five aircraft, from a Cessna 172 to an F-35A,
