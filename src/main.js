@@ -215,6 +215,17 @@ const GRAVITY_WORLD = 0.981;
 const CL_MAX = 1.6;
 const CL_PER_RADIAN = 4.5;
 const INDUCED_DRAG = 2;
+// How far below the flight path the nose may be commanded with the stick held
+// fully forward, measured in the lift it gives away: 0.5 means the wing is held
+// to half the lift it trims at, 4 means it may unload completely.
+//
+// Wings level there is no turn to protect and the nose goes where it is pointed.
+// Past a few degrees of bank the wing is made to keep half its trimmed lift,
+// because a fully unloaded wing has nothing left to curve a turn with — which is
+// what used to leave a banked descent flying straight ahead.
+const PUSHOVER_UNLOAD_LEVEL = 4;
+const PUSHOVER_UNLOAD_BANKED = 0.5;
+const PUSHOVER_BANK_RANGE = [0.1, 0.35];
 // Tyres and bearings, as a fraction of g. Enough that an aircraft rolling at
 // idle eventually stops instead of coasting down the runway forever.
 const ROLLING_RESISTANCE_G = 0.018;
@@ -3242,6 +3253,7 @@ class FlightWorld {
     if (!this.running || this.paused || this.crashed) return;
     const spec = AIRCRAFT[this.aircraftId];
     const controlRate = spec.controlRate ?? 0.62;
+    const aero = aeroModel(spec);
     const clampAxis = (value) => THREE.MathUtils.clamp(value, -1, 1);
     const targetPitch = clampAxis(
       (this.keys.has("w") ? 1 : 0) - (this.keys.has("s") ? 1 : 0) + this.stick.pitch);
@@ -3288,7 +3300,27 @@ class FlightWorld {
         THREE.MathUtils.smoothstep(this.state.velocity, spec.takeoff, spec.takeoff * 1.8),
       )
       : groundLimit;
-    this.state.pitch = THREE.MathUtils.lerp(this.state.pitch, targetPitch * pitchAuthority, dt * controlRate * 2.8);
+    // Pitch is commanded as an attitude, but the flight path can only follow the
+    // nose as fast as the wing can bend it round. Left unbounded the nose snaps
+    // tens of degrees below gamma in a fifth of a second and stays there, and
+    // the angle of attack sits pinned at its negative clamp for seconds on end:
+    // the wing unloads completely, so a banked descent stops turning at all.
+    // Bounding the command relative to the flight path makes full forward stick
+    // an unload rather than a bunt. A steep dive still develops — the floor
+    // travels down with gamma, so the nose follows the path down instead of
+    // outrunning it — but the wing keeps enough of its lift to curve a turn.
+    const unload = THREE.MathUtils.lerp(
+      PUSHOVER_UNLOAD_LEVEL,
+      PUSHOVER_UNLOAD_BANKED,
+      THREE.MathUtils.smoothstep(Math.abs(this.state.roll), ...PUSHOVER_BANK_RANGE),
+    );
+    const pitchFloor = this.state.gamma - (unload * aero.clTrim) / CL_PER_RADIAN;
+    const pitchCommand = targetPitch * pitchAuthority;
+    this.state.pitch = THREE.MathUtils.lerp(
+      this.state.pitch,
+      this.airborne ? Math.max(pitchCommand, pitchFloor) : pitchCommand,
+      dt * controlRate * 2.8,
+    );
 
     // On the ground the undercarriage holds the aircraft level: the ailerons
     // still deflect, but the wheels stop it banking, so lateral input steers
@@ -3317,7 +3349,6 @@ class FlightWorld {
     // along the flight path, not from the throttle setting directly. That is
     // what makes a closed throttle a glide rather than a car coasting to a
     // halt, and what makes a nose-down attitude build speed as it descends.
-    const aero = aeroModel(spec);
     const airspeed = Math.max(this.state.velocity * KNOTS_TO_WORLD, 0.001);
     const gamma = this.state.gamma;
 
@@ -3327,8 +3358,12 @@ class FlightWorld {
     // Assisted flight: part of the extra lift a real pilot would pull in to hold
     // altitude through a bank is added for you. Steep banks still descend.
     const bankHelp = 1 + 0.7 * (1 / Math.max(Math.cos(this.state.roll), 0.2) - 1);
+    // The assist only ever adds to lift the wing is already making. Applied to a
+    // negative coefficient it would deepen it instead, so a pushover in a bank
+    // would pull *harder* the further it was banked.
+    const clAlpha = aero.clTrim + CL_PER_RADIAN * alpha;
     const lifting = THREE.MathUtils.clamp(
-      (aero.clTrim + CL_PER_RADIAN * alpha) * bankHelp + this.state.flapPosition * 0.008,
+      (clAlpha > 0 ? clAlpha * bankHelp : clAlpha) + this.state.flapPosition * 0.008,
       -0.5,
       CL_MAX,
     );
@@ -3388,7 +3423,12 @@ class FlightWorld {
       if (airspeed > 0.15) {
         const turning = liftAccel * Math.cos(this.state.roll) - GRAVITY_WORLD * Math.cos(gamma);
         this.state.gamma = THREE.MathUtils.clamp(gamma + (turning / airspeed) * dt, -1.3, 1.3);
-        this.state.heading += (-liftAccel * Math.sin(this.state.roll) / airspeed) * dt;
+        // Only lift the wing is actually carrying curves the turn. Pushing over
+        // snaps the nose below the flight path faster than gamma can follow, and
+        // the resulting angle of attack is briefly negative; taken signed, that
+        // inverts the lift vector and banking left would turn right until gamma
+        // caught up. An unloaded wing should simply stop turning.
+        this.state.heading += (-Math.max(liftAccel, 0) * Math.sin(this.state.roll) / airspeed) * dt;
       }
       this.state.heading += rudder * 0.18 * dt * controlRate;
     }
