@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Horizon's brand mark as an attitude indicator: the world banks behind a
+       level aircraft symbol, with the brand's orange line on the horizon and
+       the sun setting into the Pacific. Full-bleed square: iOS rounds it. -->
+  <defs>
+    <linearGradient id="sky" gradientUnits="userSpaceOnUse" x1="0" y1="-60" x2="0" y2="330">
+      <stop offset="0" stop-color="#173f66"/>
+      <stop offset="0.5" stop-color="#3f7fae"/>
+      <stop offset="0.8" stop-color="#9cc3d6"/>
+      <stop offset="0.93" stop-color="#f6cf9f"/>
+      <stop offset="1" stop-color="#ffab62"/>
+    </linearGradient>
+    <linearGradient id="sea" gradientUnits="userSpaceOnUse" x1="0" y1="330" x2="0" y2="600">
+      <stop offset="0" stop-color="#2a6a84"/>
+      <stop offset="0.3" stop-color="#184563"/>
+      <stop offset="1" stop-color="#0c2238"/>
+    </linearGradient>
+    <radialGradient id="glow" gradientUnits="userSpaceOnUse" cx="256" cy="330" r="190">
+      <stop offset="0" stop-color="#fff0d2" stop-opacity="0.95"/>
+      <stop offset="0.3" stop-color="#ffc07a" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ff9448" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="shimmer" gradientUnits="userSpaceOnUse" x1="0" y1="330" x2="0" y2="520">
+      <stop offset="0" stop-color="#ffd7a3" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#ffd7a3" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="vignette" cx="0.5" cy="0.45" r="0.75">
+      <stop offset="0.6" stop-color="#06131f" stop-opacity="0"/>
+      <stop offset="1" stop-color="#06131f" stop-opacity="0.35"/>
+    </radialGradient>
+    <clipPath id="skyside">
+      <rect x="-300" y="-300" width="1100" height="630"/>
+    </clipPath>
+  </defs>
+
+  <!-- Everything in the world is banked; the aircraft symbol stays level. -->
+  <g transform="rotate(-9 256 330)">
+    <rect x="-300" y="-300" width="1100" height="630" fill="url(#sky)"/>
+    <rect x="-300" y="-300" width="1100" height="630" fill="url(#glow)"/>
+    <!-- The sun, half set -->
+    <circle cx="256" cy="330" r="50" fill="#fff5e2" clip-path="url(#skyside)"/>
+    <!-- A volcanic island on the horizon -->
+    <path d="M-40 331 C 10 318, 40 300, 66 286 C 82 278, 94 280, 108 290 C 126 302, 150 314, 196 331 Z" fill="#1c4460" opacity="0.9"/>
+    <path d="M384 331 C 404 324, 418 318, 432 318 C 446 318, 470 326, 520 331 Z" fill="#1c4460" opacity="0.7"/>
+    <rect x="-300" y="330" width="1100" height="400" fill="url(#sea)"/>
+    <!-- The sun's path on the water -->
+    <path d="M222 330 L290 330 L306 520 L206 520 Z" fill="url(#shimmer)" opacity="0.4"/>
+    <g fill="#ffe4c0">
+      <rect x="220" y="346" width="72" height="6" rx="3" opacity="0.85"/>
+      <rect x="230" y="366" width="52" height="5" rx="2.5" opacity="0.6"/>
+      <rect x="238" y="386" width="36" height="4" rx="2" opacity="0.45"/>
+      <rect x="244" y="406" width="24" height="4" rx="2" opacity="0.3"/>
+    </g>
+    <!-- The brand's orange line, laid along the horizon -->
+    <line x1="-300" y1="330" x2="800" y2="330" stroke="#ff8a2a" stroke-width="7"/>
+    <!-- Pitch ladder -->
+    <g stroke="#ffffff" stroke-linecap="round" opacity="0.6">
+      <line x1="226" y1="194" x2="286" y2="194" stroke-width="4"/>
+      <line x1="206" y1="126" x2="306" y2="126" stroke-width="5"/>
+    </g>
+  </g>
+
+  <!-- Aircraft reference symbol, held level -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M96 230 H194 L222 262 L256 228 L290 262 L318 230 H416" stroke="#0b2034" stroke-opacity="0.35" stroke-width="30" transform="translate(0 6)"/>
+    <path d="M96 230 H194 L222 262 L256 228 L290 262 L318 230 H416" stroke="#fffaf1" stroke-width="20"/>
+  </g>
+  <circle cx="256" cy="228" r="13" fill="#ff8a2a" stroke="#fffaf1" stroke-width="5"/>
+
+  <rect width="512" height="512" fill="url(#vignette)"/>
+</svg>
