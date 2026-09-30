@@ -231,6 +231,13 @@ const INDUCED_DRAG = 2;
 const PUSHOVER_UNLOAD_LEVEL = 4;
 const PUSHOVER_UNLOAD_BANKED = 0.5;
 const PUSHOVER_BANK_RANGE = [0.1, 0.35];
+// Reset on approach: speed as a multiple of the stall (rotation) speed, a
+// three-degree glidepath, ninety seconds out, and the height the final is
+// raised to keep over any terrain beneath it (30 m).
+const APPROACH_SPEED_FACTOR = 1.25;
+const APPROACH_GLIDEPATH = THREE.MathUtils.degToRad(3);
+const APPROACH_SECONDS = 90;
+const APPROACH_CLEARANCE = 3;
 // Tyres and bearings, as a fraction of g. Enough that an aircraft rolling at
 // idle eventually stops instead of coasting down the runway forever.
 const ROLLING_RESISTANCE_G = 0.018;
@@ -1060,6 +1067,7 @@ document.querySelector("#app").innerHTML = `
         <button id="resumeButton" type="button">Resume flight</button>
         <button id="rewindButton" type="button">Rewind five seconds</button>
         <button id="resetButton" type="button">Reset on runway</button>
+        <button id="approachButton" type="button">Reset on approach</button>
         <button id="exitButton" type="button">Return to flight setup</button>
       </div>
     </aside>
@@ -3229,14 +3237,73 @@ class FlightWorld {
     this.state.flaps = airStart ? 0 : 10;
     this.state.flapPosition = this.state.flaps;
     this.history = [];
-    const forward = new THREE.Vector3(Math.sin(this.state.heading), 0, -Math.cos(this.state.heading));
-    this.camera.position.copy(this.state.position)
-      .addScaledVector(forward, -spec.chaseDistance)
-      .add(new THREE.Vector3(0, spec.chaseHeight, 0));
+    this.placeChaseCamera();
   }
 
   reset() {
     this.start(this.airportIndex, false, this.startFuelFraction);
+  }
+
+  /**
+   * Puts the aircraft on a stabilised final to the departure runway: on a
+   * three-degree glidepath, gear down, landing flap, and trimmed at approach
+   * speed with the power that holds it there.
+   */
+  resetOnApproach() {
+    this.start(this.airportIndex, true, this.startFuelFraction);
+    const spec = AIRCRAFT[this.aircraftId];
+    const aero = aeroModel(spec);
+    const airport = AIRPORTS[this.airportIndex];
+    const state = this.state;
+
+    // Stall in this model is the rotation speed, so approach is flown at
+    // 1.25 Vs rather than at the book figure.
+    const speed = spec.takeoff * APPROACH_SPEED_FACTOR;
+    const airspeed = speed * KNOTS_TO_WORLD;
+    const gamma = -APPROACH_GLIDEPATH;
+    state.flaps = 30;
+    state.flapPosition = 30;
+    state.gear = true;
+    state.gearPosition = 1;
+    state.velocity = speed;
+    state.gamma = gamma;
+    state.roll = 0;
+
+    // Trim the wing to carry the weight on the glidepath, then set the power
+    // that balances the drag of that configuration against the descent.
+    const lifting = GRAVITY_WORLD * Math.cos(gamma) / (aero.liftK * airspeed * airspeed);
+    const alpha = (lifting - state.flapPosition * 0.008 - aero.clTrim) / CL_PER_RADIAN;
+    state.pitch = gamma + THREE.MathUtils.clamp(alpha, -0.3, 0.3);
+    const configDrag = (spec.gearDrag ?? 0.5) + (spec.flapDrag ?? 0.55);
+    const drag = aero.dragK * airspeed * airspeed * (1 + INDUCED_DRAG * lifting * lifting + configDrag);
+    state.throttle = state.engineRunning
+      ? THREE.MathUtils.clamp((drag + GRAVITY_WORLD * Math.sin(gamma)) / aero.thrustMax, 0, 1)
+      : 0;
+
+    // Back out along the extended centreline from the touchdown point. Where
+    // terrain rises under the final, the path is steepened to clear it rather
+    // than flying the aircraft into the hillside.
+    const distance = airspeed * APPROACH_SECONDS;
+    const back = new THREE.Vector3(-Math.sin(state.heading), 0, Math.cos(state.heading));
+    const aimY = this.getTerrainHeight(airport.x, airport.z);
+    let startY = aimY + distance * Math.tan(APPROACH_GLIDEPATH);
+    for (let i = 3; i <= 20; i += 1) {
+      const f = i / 20;
+      const ground = this.getTerrainHeight(airport.x + back.x * distance * f, airport.z + back.z * distance * f);
+      startY = Math.max(startY, aimY + (ground + APPROACH_CLEARANCE - aimY) / f);
+    }
+    state.position.set(airport.x + back.x * distance, startY, airport.z + back.z * distance);
+    const descent = Math.atan2(startY - aimY, distance);
+    if (descent > APPROACH_GLIDEPATH + 0.01) state.gamma = -descent;
+    this.placeChaseCamera();
+  }
+
+  placeChaseCamera() {
+    const spec = AIRCRAFT[this.aircraftId];
+    const forward = new THREE.Vector3(Math.sin(this.state.heading), 0, -Math.cos(this.state.heading));
+    this.camera.position.copy(this.state.position)
+      .addScaledVector(forward, -spec.chaseDistance)
+      .add(new THREE.Vector3(0, spec.chaseHeight, 0));
   }
 
   snapshot() {
@@ -4672,6 +4739,13 @@ document.querySelector("#resetButton").addEventListener("click", () => {
   hideCrashPanel();
   setPaused(false);
   showToast("Reset on runway");
+});
+document.querySelector("#approachButton").addEventListener("click", () => {
+  world.resetOnApproach();
+  hideCrashPanel();
+  setPaused(false);
+  const airport = AIRPORTS[world.airportIndex];
+  showToast(`On final · Runway ${airport.runway} · ${Math.round(world.state.velocity)} kt`);
 });
 document.querySelector("#crashRewindButton").addEventListener("click", rewind);
 document.querySelector("#crashResetButton").addEventListener("click", () => {
