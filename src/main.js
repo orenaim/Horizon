@@ -324,6 +324,162 @@ const WATER_SURFACE = -0.06;
 // water the grid still resolves.
 const SHORE_APRON_SAMPLES = 2;
 
+/**
+ * Wind waves and the light off them, shared by the ocean and by lakes shaded
+ * into the ground. Positions are world units (ten metres each).
+ *
+ * The surface is a spectrum of 24 wave trains, each at its deep-water speed.
+ * Waves too fine for a pixel to resolve are not drawn; their slope is handed to
+ * the sun glint as roughness instead, which is what stretches the glint into a
+ * long glitter path toward the horizon rather than letting far water shimmer.
+ */
+const WATER_GLSL = /* glsl */ `
+  float waveHash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  }
+
+  float waveNoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(
+      mix(waveHash(i), waveHash(i + vec2(1.0, 0.0)), u.x),
+      mix(waveHash(i + vec2(0.0, 1.0)), waveHash(i + vec2(1.0, 1.0)), u.x),
+      u.y);
+  }
+
+  // Gusts: broad patches where the wind is stronger roughen the chop, the
+  // darker cat's paws you see drifting across water from the air: a few hundred
+  // metres across, inside broader swathes of stronger and lighter wind.
+  float waveGust(vec2 p, vec2 wind, float time) {
+    vec2 drift = wind * time * 0.015;
+    float broad = waveNoise(p * 0.0012 - drift);
+    float paws = waveNoise(p * 0.02 + vec2(broad * 3.0) - drift * 4.0);
+    return 0.45 + 1.1 * mix(broad, paws * paws * 1.6, 0.5);
+  }
+
+  // Filtered surface normal. \`longest\` is the first wavelength and \`scale\` the
+  // sea state; \`variance\` returns the slope of everything too fine to draw and
+  // \`crest\` the height of the metre-to-ten-metre chop, for whitecaps.
+  vec3 waveNormal(vec2 p, float time, vec2 wind, float longest, float scale,
+      float gust, out float variance, out float crest) {
+    // How much water this pixel covers. A wave is only drawn while it spans
+    // several pixels; below that it aliases.
+    float footprint = max(length(dFdx(p)), length(dFdy(p)));
+    // A noise term warps the longer waves so they do not read as a regular
+    // corduroy stretching to the horizon.
+    float wander = waveNoise(p * 0.006) * 4.0 + waveNoise(p * 0.023) * 2.0;
+    vec2 slope = vec2(0.0);
+    float crestSum = 0.0;
+    float crestCount = 0.0;
+    float wavelength = longest;
+    variance = 0.0;
+    for (int i = 0; i < 24; i++) {
+      float fi = float(i);
+      // Directions fan out up to about 70° either side of the wind, more widely
+      // for short waves. Golden-ratio steps keep neighbouring layers from lining
+      // up into a single visible grain.
+      float angle = (fract(fi * 0.6180339 + 0.37) - 0.5) * (1.6 + fi * 0.04);
+      vec2 dir = vec2(
+        wind.x * cos(angle) - wind.y * sin(angle),
+        wind.x * sin(angle) + wind.y * cos(angle));
+      float k = 6.2831853 / wavelength;
+      // Deep-water dispersion, ω = √(gk), with k in metres: long waves outrun
+      // the chop riding on them.
+      float omega = sqrt(9.81 * k * 0.1);
+      // The longest waves are gentle, and from altitude any steeper reads as a
+      // regular corduroy. The chop follows the gusts; the long waves do not.
+      float base = 0.1 * scale * mix(0.25, 1.0, smoothstep(0.0, 8.0, fi));
+      float gusting = smoothstep(4.0, 12.0, fi);
+      float steepness = base * mix(1.0, gust, gusting);
+      float phase = dot(p, dir) * k - omega * time + fi * 1.7 + wander * (0.3 + fi * 0.05);
+      // exp(sin − 1) sharpens the crests and flattens the troughs, the shape of
+      // a real wind sea rather than a pure sine.
+      float shape = exp(sin(phase) - 1.0);
+      // Real waves travel in groups that build and die away over a dozen
+      // wavelengths. Without that, the few long trains drawn from altitude are
+      // each one perfect wave across the whole sea, and they print the same
+      // hammered texture everywhere. The short chop is already broken up by
+      // the gusts, and skipping it keeps the cost down.
+      if (i < 12) {
+        // A group is about five wavelengths long and moves at half the wave
+        // speed, as deep-water groups do.
+        float groupScale = k * 0.03;
+        vec2 group = p * groupScale + vec2(fi * 7.31, fi * 3.17)
+          - dir * time * omega * 0.5 / k * groupScale;
+        float envelope = waveNoise(group);
+        steepness *= 0.15 + 1.7 * envelope * envelope;
+      }
+      float resolved = smoothstep(3.0 * footprint, 10.0 * footprint, wavelength);
+      slope += dir * shape * cos(phase) * steepness * resolved;
+      // The glint's roughness takes the average sea, not each group and gust
+      // at full strength. The glint's brightness swings with roughness, so
+      // patchy roughness prints the glitter as white blotches rather than the
+      // one smooth path real glitter makes. The gusts keep a light touch.
+      // 0.108 is the mean of (cos·e^(sin−1))² over a cycle.
+      float averaged = base * mix(1.0, gust, gusting * 0.25);
+      variance += 0.108 * averaged * averaged * (1.0 - resolved);
+      if (wavelength < 3.0 && wavelength > 0.3) {
+        crestSum += mix(0.26, shape, resolved);
+        crestCount += 1.0;
+      }
+      wavelength *= 0.8;
+    }
+    crest = crestSum / max(crestCount, 1.0);
+    // Ripples finer than the last layer are never drawn, and carry a good share
+    // of the slope, so the glint always has some width.
+    variance += 0.012 * mix(1.0, gust, 0.25) * scale * scale;
+    return normalize(vec3(-slope.x, 1.0, -slope.y));
+  }
+
+  // Light leaving the surface: the water's own colour, the sky it reflects and
+  // the sun glint. Grazing angles reflect sky, steep angles show the water
+  // (Schlick, water's 2% at normal incidence), and the reflected ray reads the
+  // same gradient the sky dome draws. The constant term stands in for skylight
+  // scattered back out of the water, which keeps deep water from crushing to
+  // black overhead. The glint is a Beckmann microfacet lobe: close in the
+  // roughness is only the ripples, so it breaks into sparkles on each drawn
+  // wave; far out the unresolved waves widen it into one path.
+  vec3 waterLight(vec3 water, vec3 N, vec3 V, float roughness, vec3 skyTop,
+      vec3 skyBottom, vec3 sun, float sunIntensity) {
+    float NoV = max(dot(N, V), 0.0);
+    // Unresolved facets tilt toward the viewer on average, so rough water
+    // mirrors less of the bright horizon and more of the sky above it. This
+    // is what makes gusts read as darker patches on a calm lake.
+    float spread = sqrt(roughness);
+    float fresnel = 0.02 + 0.98 * pow(1.0 - min(NoV + spread * 0.35, 1.0), 5.0);
+    vec3 R = reflect(-V, N);
+    float skyHeight = clamp(R.y + spread * 0.6, 0.0, 1.0) * 0.5 + 0.5;
+    vec3 sky = mix(skyBottom, skyTop, smoothstep(0.15, 0.82, skyHeight));
+    vec3 color = mix(water, sky, fresnel) + skyTop * 0.035;
+
+    vec3 H = normalize(sun + V);
+    float NoH = max(dot(N, H), 1e-3);
+    float NoH2 = NoH * NoH;
+    float beckmann = exp((NoH2 - 1.0) / (NoH2 * roughness))
+      / (3.14159 * roughness * NoH2 * NoH2);
+    float glintFresnel = 0.02 + 0.98 * pow(1.0 - max(dot(V, H), 0.0), 5.0);
+    float glint = beckmann * glintFresnel / (4.0 * max(NoV, 0.08)) * step(0.0, dot(N, sun));
+    return color + min(glint * sunIntensity, 24.0) * vec3(1.0, 0.97, 0.9);
+  }
+`;
+
+/**
+ * Downwind direction and sea-state scale from an area's conditions line, so
+ * the water agrees with the wind the briefing reports. Tuned so Hawaiʻi's
+ * six-knot trades are a scale of one.
+ */
+function surfaceWind(region) {
+  const [, fromDeg = 0, knots = 6] =
+    region?.conditions?.match(/Wind (\d+)° \/ (\d+) kt/)?.map(Number) ?? [];
+  // Waves run away from where the wind comes from. North is −z, east is +x.
+  const toward = THREE.MathUtils.degToRad(fromDeg + 180);
+  return {
+    direction: new THREE.Vector2(Math.sin(toward), -Math.cos(toward)),
+    scale: THREE.MathUtils.clamp(0.7 + knots * 0.05, 0.6, 1.4),
+  };
+}
+
 /** Drawn height in world units for a surveyed elevation in metres. */
 function drawnSurface(metres, verticalScale) {
   const above = metres - WATERLINE_METRES;
@@ -1124,6 +1280,15 @@ class FlightWorld {
     // frame rather than replacing them, so a Bluetooth keyboard on an iPad
     // keeps working alongside the touch controls.
     this.stick = { pitch: 0, roll: 0, throttle: 0 };
+    // Clock, wind and sky for every lake shaded into the ground; the ocean has
+    // its own copies, since a ShaderMaterial clones what it is given.
+    this.waterUniforms = {
+      waterTime: { value: 0 },
+      waterWind: { value: new THREE.Vector2(0, 1) },
+      waterState: { value: 1 },
+      waterSkyTop: { value: new THREE.Color() },
+      waterSkyBottom: { value: new THREE.Color() },
+    };
     this.running = false;
     this.paused = false;
     this.cameraMode = "chase";
@@ -1531,6 +1696,17 @@ class FlightWorld {
     this.scene.fog.density = density;
     this.sky.material.uniforms.topColor.value.setHex(top);
     this.sky.material.uniforms.bottomColor.value.setHex(bottom);
+    const wind = surfaceWind(region);
+    const water = this.waterUniforms;
+    water.waterSkyTop.value.setHex(top);
+    water.waterSkyBottom.value.setHex(bottom);
+    water.waterWind.value.copy(wind.direction);
+    water.waterState.value = wind.scale;
+    const ocean = this.ocean.material.uniforms;
+    ocean.skyTop.value.setHex(top);
+    ocean.skyBottom.value.setHex(bottom);
+    ocean.windDirection.value.copy(wind.direction);
+    ocean.seaState.value = wind.scale;
     this.ocean.visible = Boolean(region.sea);
     this.clouds.position.y = region.cloudBase ?? 0;
   }
@@ -1772,8 +1948,10 @@ class FlightWorld {
         shader.uniforms.lakeLevel = { value: lake };
         shader.uniforms.lakeDeep = { value: new THREE.Color(0x14405e) };
         shader.uniforms.lakeShallow = { value: new THREE.Color(0x2f8fa8) };
-        shader.uniforms.lakeSky = { value: new THREE.Color(region.air.bottom) };
         shader.uniforms.lakeSun = { value: this.sun.position.clone().normalize() };
+        // Shared with the ocean, so every lake follows the same clock, wind
+        // and sky without the ground materials having to be tracked.
+        Object.assign(shader.uniforms, this.waterUniforms);
       }
       shader.vertexShader = shader.vertexShader
         .replace(
@@ -1797,9 +1975,14 @@ class FlightWorld {
           ${lake ? `uniform float lakeLevel;
           uniform vec3 lakeDeep;
           uniform vec3 lakeShallow;
-          uniform vec3 lakeSky;
           uniform vec3 lakeSun;
-          varying float vElevation;` : ""}`,
+          uniform float waterTime;
+          uniform vec2 waterWind;
+          uniform float waterState;
+          uniform vec3 waterSkyTop;
+          uniform vec3 waterSkyBottom;
+          varying float vElevation;
+          ${WATER_GLSL}` : ""}`,
         )
         .replace(
           "#include <map_fragment>",
@@ -1815,26 +1998,40 @@ class FlightWorld {
             vec3 photo = pow(max(diffuseColor.rgb, 0.0), vec3(0.4545));
             diffuseColor.rgb = pow(clamp(photo + seamOffset * amount, 0.0, 1.0), vec3(2.2));
           }` : ""}
-          ${lake ? `{
+`,
+        );
+      if (lake) {
+        // The lake replaces the lit photograph rather than the photograph
+        // itself: its sky reflection and sun glint are light leaving the
+        // surface, which the ground's diffuse lighting would only dim.
+        shader.fragmentShader = shader.fragmentShader.replace(
+          "#include <opaque_fragment>",
+          `{
             // Two metres of tolerance covers the survey's own noise over water
             // without reaching the shelving ground at the edge.
             float water = 1.0 - smoothstep(1.0, 3.0, abs(vElevation - lakeLevel));
             if (water > 0.0) {
               vec3 V = normalize(cameraPosition - vGround);
-              // Modelled flat: a lake this size read from a cockpit has no slope
-              // worth shading, and the light does the work.
-              vec3 N = vec3(0.0, 1.0, 0.0);
-              float fresnel = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 5.0);
+              vec2 p = vGround.xz;
+              // A lake has no swell: fetch-limited chop, twelve metres down.
+              float gust = waveGust(p, waterWind, waterTime);
+              float roughness;
+              float crest;
+              vec3 N = waveNormal(p, waterTime, waterWind, 1.2, waterState, gust, roughness, crest);
               // The shallows show only where the bed has started to rise, which
               // the survey reports as the surface creeping above true level.
               float shelf = smoothstep(0.0, 1.6, vElevation - lakeLevel);
-              vec3 surface = mix(mix(lakeDeep, lakeShallow, shelf), lakeSky, fresnel * 0.6 + 0.05);
-              vec3 H = normalize(lakeSun + V);
-              surface += pow(max(dot(N, H), 0.0), 220.0) * 1.6 * vec3(1.0, 0.98, 0.92);
-              diffuseColor.rgb = mix(diffuseColor.rgb, surface, water);
+              // Broad mottling so open water is never one flat tone.
+              vec3 body = mix(lakeDeep, lakeShallow, shelf)
+                * (0.9 + 0.2 * waveNoise(p * 0.004 + waterTime * 0.004));
+              vec3 surface = waterLight(body, N, V, roughness,
+                waterSkyTop, waterSkyBottom, lakeSun, 10.0);
+              outgoingLight = mix(outgoingLight, surface, water);
             }
-          }` : ""}`,
+          }
+          #include <opaque_fragment>`,
         );
+      }
     };
   }
 
@@ -2037,9 +2234,9 @@ class FlightWorld {
 
   /**
    * The open ocean. A flat lit plane reads as a sheet of plastic from the air,
-   * so the surface is shaded from three cues that actually carry over water:
-   * depth graded by distance to the nearest land, a sun-glitter path, and surf
-   * breaking along the shore.
+   * so the surface is shaded from the cues that actually carry over water: wind
+   * waves and the sun glitter off them (see `WATER_GLSL`), depth graded by
+   * distance to the nearest land, whitecaps, and surf breaking along the shore.
    */
   addOcean(sun) {
     const direction = sun.position.clone().normalize();
@@ -2054,11 +2251,18 @@ class FlightWorld {
           shoreCount: { value: 0 },
           eye: { value: new THREE.Vector3() },
           sunDirection: { value: direction },
+          sunIntensity: { value: 10 },
+          // Set per area from its reported wind by `applyAtmosphere`.
+          windDirection: { value: new THREE.Vector2(0, 1) },
+          seaState: { value: 1 },
           time: { value: 0 },
           shallowColor: { value: new THREE.Color(0x35ccb0) },
           shelfColor: { value: new THREE.Color(0x2298b8) },
           deepColor: { value: new THREE.Color(0x1a6392) },
-          skyColor: { value: new THREE.Color(0xbcdfe8) },
+          // The sky dome's own gradient, so the water reflects the sky it sits
+          // under. `applyAtmosphere` keeps the two in step.
+          skyTop: { value: new THREE.Color(0x4da8d5) },
+          skyBottom: { value: new THREE.Color(0xa9d3df) },
           foamColor: { value: new THREE.Color(0xeaf5f6) },
         },
       ]),
@@ -2089,59 +2293,29 @@ class FlightWorld {
         uniform float shoreCount;
         uniform vec3 eye;
         uniform vec3 sunDirection;
+        uniform float sunIntensity;
+        uniform vec2 windDirection;
+        uniform float seaState;
         uniform float time;
         uniform vec3 shallowColor;
         uniform vec3 shelfColor;
         uniform vec3 deepColor;
-        uniform vec3 skyColor;
+        uniform vec3 skyTop;
+        uniform vec3 skyBottom;
         uniform vec3 foamColor;
         varying vec3 vWorldPosition;
-
-        float hash(vec2 p) {
-          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-        }
-
-        float noise(vec2 p) {
-          vec2 i = floor(p);
-          vec2 f = fract(p);
-          vec2 u = f * f * (3.0 - 2.0 * f);
-          return mix(
-            mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
-            mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x),
-            u.y);
-        }
+        ${WATER_GLSL}
 
         void main() {
           #include <logdepthbuf_fragment>
-          vec3 toEye = eye - vWorldPosition;
-          float viewDistance = length(toEye);
-          vec3 V = toEye / viewDistance;
+          vec3 V = normalize(eye - vWorldPosition);
           vec2 p = vWorldPosition.xz;
 
-          // Wave slope from four rotating swell layers. The whole perturbation
-          // fades out with distance, otherwise the far surface aliases into
-          // moire long before it reaches the horizon.
-          // Keep a floor under the perturbation: at grazing angles every pixel
-          // is far away, and a perfectly flat surface there looks like glass.
-          float detail = max(1.0 - smoothstep(150.0, 4000.0, viewDistance), 0.16);
-          vec2 slope = vec2(0.0);
-          vec2 direction = normalize(vec2(0.86, -0.5));
-          float amplitude = 1.0;
-          float frequency = 0.075;
-          // A noise term breaks the swell up, so it does not read as a regular
-          // corduroy pattern stretching to the horizon.
-          float wander = noise(p * 0.02) * 6.2831;
-          for (int i = 0; i < 4; i++) {
-            float phase = dot(p, direction) * frequency + time * (0.5 + float(i) * 0.4)
-              + wander * (0.35 + float(i) * 0.25);
-            slope += direction * cos(phase) * amplitude;
-            amplitude *= 0.52;
-            frequency *= 2.15;
-            direction = vec2(
-              direction.x * 0.62 - direction.y * 0.78,
-              direction.x * 0.78 + direction.y * 0.62);
-          }
-          vec3 N = normalize(vec3(-slope.x * 0.09 * detail, 1.0, -slope.y * 0.09 * detail));
+          // Open ocean: waves from 250 m swell down to 1.5 m chop.
+          float gust = waveGust(p, windDirection, time);
+          float roughness;
+          float crest;
+          vec3 N = waveNormal(p, time, windDirection, 25.0, seaState, gust, roughness, crest);
 
           // Distance to the nearest land, normalised over six kilometres.
           float shore = 1.0;
@@ -2156,7 +2330,7 @@ class FlightWorld {
             shore = texture2D(shoreMapB, shoreUvB).r;
           }
           // Break the coarse elevation grid up so the shelf edge is not blocky.
-          float grain = noise(p * 0.05) * 0.35 + noise(p * 0.011) * 0.65;
+          float grain = waveNoise(p * 0.05) * 0.35 + waveNoise(p * 0.011) * 0.65;
           float depth = clamp(shore + (grain - 0.5) * 0.035, 0.0, 1.0);
 
           // Hawaiʻi's fringing reefs run a few hundred metres to a couple of
@@ -2165,24 +2339,23 @@ class FlightWorld {
           vec3 water = mix(shallowColor, shelfColor, smoothstep(0.02, 0.18, depth));
           water = mix(water, deepColor, smoothstep(0.15, 0.55, depth));
           // Broad mottling so open water is never one flat tone.
-          water *= 0.92 + 0.16 * noise(p * 0.004 + time * 0.004);
+          water *= 0.92 + 0.16 * waveNoise(p * 0.004 + time * 0.004);
 
-          // Grazing angles reflect sky, steep angles show the water colour. The
-          // constant term stands in for skylight scattered back out of the
-          // water, which keeps deep ocean from crushing to black overhead.
-          float fresnel = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 5.0);
-          vec3 color = mix(water, skyColor, fresnel * 0.55 + 0.06);
+          vec3 color = waterLight(water, N, V, roughness, skyTop, skyBottom,
+            sunDirection, sunIntensity);
 
-          // Sun glitter: a tight sparkle close in over a narrow sheen. A broad
-          // sheen washes the whole surface out to a flat pale grey.
-          vec3 H = normalize(sunDirection + V);
-          float specular = pow(max(dot(N, H), 0.0), 260.0) * 2.4 * detail;
-          float sheen = pow(max(dot(N, H), 0.0), 44.0) * 0.07;
-          color += (specular + sheen) * vec3(1.0, 0.97, 0.9);
+          // Whitecaps: the tallest crests of the chop break where the gusts
+          // are strongest. Six knots of trade wind only just breaks the odd
+          // crest; once the chop is too fine to draw, the caps fade out.
+          float capNoise = waveNoise(p * 1.3 + windDirection * time * 0.3);
+          float caps = smoothstep(0.7, 0.85, crest * (0.55 + 0.3 * gust) * seaState + capNoise * 0.1);
+          caps *= smoothstep(1.1, 1.4, gust * seaState);
+          color = mix(color, foamColor, caps * 0.8);
 
           // Surf: a broken band of white water along the shoreline.
           float surf = 1.0 - smoothstep(0.0, 0.055, depth);
-          float breaking = noise(p * 0.09 - time * 0.05) * 0.6 + noise(p * 0.32 + time * 0.08) * 0.4;
+          float breaking = waveNoise(p * 0.09 - time * 0.05) * 0.6
+            + waveNoise(p * 0.32 + time * 0.08) * 0.4;
           float foam = smoothstep(0.5, 0.95, surf * (0.55 + breaking * 0.8));
           color = mix(color, foamColor, clamp(foam, 0.0, 1.0));
 
@@ -2270,9 +2443,10 @@ class FlightWorld {
   }
 
   updateOcean(dt) {
+    this.waterUniforms.waterTime.value += dt;
     if (!this.ocean.visible) return;
     const uniforms = this.ocean.material.uniforms;
-    uniforms.time.value += dt;
+    uniforms.time.value = this.waterUniforms.waterTime.value;
     uniforms.eye.value.copy(this.camera.position);
     // Keep the finite water sheet under the aircraft across the 175 km
     // inter-island gap; shader coordinates remain absolute world positions.
