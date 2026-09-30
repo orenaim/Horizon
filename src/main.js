@@ -6,6 +6,7 @@ import { buildC172Model } from "./c172.js";
 import { preloadC172, c172Source, buildC172FromModel } from "./c172-glb.js";
 import { enableModelInspector } from "./model-inspector.js";
 import { buildTbm930Model } from "./tbm930.js";
+import { preloadTbm930, tbm930Source, buildTbm930FromModel } from "./tbm930-glb.js";
 import { buildF35Model } from "./f35.js";
 import { preloadF35, f35Source, buildF35FromModel } from "./f35-glb.js";
 import { buildA380Model } from "./a380.js";
@@ -59,11 +60,15 @@ const AIRCRAFT = {
     color: 0xe8e9e3,
     accent: 0x173b55,
     scale: 1.2,
-    modelScale: 0.24,
-    chaseDistance: 2.8,
-    chaseHeight: 1.1,
-    cockpitOffset: 0.3,
-    steerRadius: 1.6,
+    // The downloaded model is in metres, like the C172's. The built stand-in
+    // is drawn in its own units and needs its own factor to come out the same
+    // 12.8 m across.
+    modelScale: 0.1,
+    builtModelScale: 0.18,
+    chaseDistance: 1.9,
+    chaseHeight: 0.6,
+    cockpitOffset: 0.25,
+    steerRadius: 1.3,
     flapTravel: 7,
     gearTravel: 7,
     gearDrag: 0.45,
@@ -921,6 +926,16 @@ document.querySelector("#app").innerHTML = `
             <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.
             Modified: ground equipment removed, cabin door closed, glazing retuned,
             lift struts added, control surfaces split and hinged.
+          </dd>
+
+          <dt>Daher TBM 930</dt>
+          <dd>
+            <a href="https://sketchfab.com/3d-models/daher-tbm-930-ba21567b779040038081f084fc528a44" target="_blank" rel="noopener">“Daher TBM 930”</a>
+            by helijah, licensed
+            <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.
+            Modified: converted from the original OBJ with its parts kept separate,
+            ventral fins removed,
+            control surfaces and undercarriage hinged, glazing retuned.
           </dd>
 
           <dt>F-35A Lightning II</dt>
@@ -2779,7 +2794,12 @@ class FlightWorld {
         ? buildC172FromModel(source, AIRCRAFT.c172.modelScale)
         : buildC172Model(AIRCRAFT.c172.modelScale);
     }
-    if (spec.code === "TBM") return buildTbm930Model(AIRCRAFT.tbm.modelScale);
+    if (spec.code === "TBM") {
+      const source = tbm930Source();
+      return source
+        ? buildTbm930FromModel(source, AIRCRAFT.tbm.modelScale)
+        : buildTbm930Model(AIRCRAFT.tbm.builtModelScale);
+    }
     if (spec.code === "F-35") {
       const source = f35Source();
       return source
@@ -3021,6 +3041,8 @@ class FlightWorld {
       preloadA380().then(() => this.upgradeAirframe());
     } else if (id === "f35" && !f35Source()) {
       preloadF35().then(() => this.upgradeAirframe());
+    } else if (id === "tbm" && !tbm930Source()) {
+      preloadTbm930().then(() => this.upgradeAirframe());
     }
   }
 
@@ -3036,6 +3058,8 @@ class FlightWorld {
       this.selectAircraft("a380");
     } else if (this.aircraftId === "f35" && f35Source() && !this.plane.userData.modelRoot) {
       this.selectAircraft("f35");
+    } else if (this.aircraftId === "tbm" && tbm930Source() && !this.plane.userData.modelRoot) {
+      this.selectAircraft("tbm");
     }
   }
 
@@ -4329,7 +4353,7 @@ document.querySelector("#fuelRange").addEventListener("input", (event) => {
 const inspecting = new URLSearchParams(location.search).get("inspect");
 if (inspecting !== null) {
   const id = AIRCRAFT[inspecting] ? inspecting : "c172";
-  const preload = id === "a380" ? preloadA380 : id === "f35" ? preloadF35 : preloadC172;
+  const preload = id === "a380" ? preloadA380 : id === "f35" ? preloadF35 : id === "tbm" ? preloadTbm930 : preloadC172;
   preload().then(() => {
     world.selectAircraft(id);
     enableModelInspector(world);

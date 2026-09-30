@@ -412,7 +412,7 @@ placeholder. The three newest are built in metres with `modelScale` converting
 straight to world units, so their dimensions can be read against the published
 airframe and checked in-sim.
 
-Two of them fly as downloaded models rather than built geometry, which buys a
+All four fly as downloaded models rather than built geometry, which buys a
 far better airframe and a genuinely good interior than hand-extruded primitives
 ever would. The built versions stay in the tree and fly until the download
 lands.
@@ -520,6 +520,41 @@ built replacements. Clicking the offending mesh is what unpicked all of it.
 The cockpit view sits 6° below level. Level put the panel off the bottom of the
 frame; this is roughly the sight picture over a real glareshield, with the
 instruments along the bottom edge and the horizon in the upper third.
+
+The **TBM 930** is a downloaded model as well, in `src/tbm930-glb.js`.
+
+> "Daher TBM 930" ([Sketchfab](https://sketchfab.com/3d-models/daher-tbm-930-ba21567b779040038081f084fc528a44))
+> by helijah is licensed under [Creative Commons Attribution](http://creativecommons.org/licenses/by/4.0/).
+
+Sketchfab's GLB for it merges every part that shares a material, which fuses
+the flaps, gear legs, wheels and doors into two airframe-sized meshes. The
+download also carries the author's original OBJ, which keeps all 155 parts as
+named objects, so `scripts/build-tbm-model.mjs` converts that instead: one glTF
+node per object, names intact. The names are French — `voletG`/`voletD` are the
+left and right flaps, `profondeur` the elevators, `direction` the rudder,
+`axe`/`roue`/`porte` the gear legs, wheels and doors — and the loader addresses
+parts by name, so there is no fingerprinting.
+
+No surface on this airframe hinges about a model axis: the wing has about 7° of
+dihedral and some sweep, and the tailplane and fin more. Each hinge line is
+measured from the forward edge of its surface at both ends, and the part hangs
+from a frame turned onto that line whose other axes are the sim's, so the sim
+drives it with the same `rotation.x` it uses on a hand-built flap.
+
+The undercarriage is driven through `setGearPosition`. The mains fold inboard,
+each wheel into the round bay the model has cut into the wing root, with the
+fairing door on the leg closing the slot the leg drops through. The wing is only
+20 cm deep there and the door stands 20 cm outboard of the leg, so the leg tops
+do not work as trunnions — swung about them, either the tyre breaks through the
+upper skin or the door stows well below the lower. The trunnion and angle were
+found by searching both against the wing's surfaces, sampled from the model:
+83°, about an axis just inside the wing. The nose leg folds aft into its bay,
+and its two doors close under it in the last quarter of the cycle — and open
+first on the way down. The whole airframe is scaled from its 10.74 m length;
+the winglets make the span read half a metre wide.
+
+The built TBM in `src/tbm930.js` stays as the fallback while the model
+downloads, drawn at its own `builtModelScale`.
 
 The **built A380-800** in `src/a380.js`, which flies until the download lands,
 measures 73.3 m by 79.4 m against a real 72.7 by 79.75. What

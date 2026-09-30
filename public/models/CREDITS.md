@@ -31,3 +31,16 @@ by shangus930 is licensed under Creative Commons Attribution
 Used with the modifications described in `src/f35-glb.js`: scaled from the real
 aircraft's span and adapted to the simulator's control, undercarriage, lighting,
 and cockpit-camera systems.
+
+## Daher TBM 930 — `daher_tbm_930.glb`
+
+"Daher TBM 930"
+(https://sketchfab.com/3d-models/daher-tbm-930-ba21567b779040038081f084fc528a44)
+by helijah (Emmanuel Baranger) is licensed under Creative Commons Attribution
+(http://creativecommons.org/licenses/by/4.0/).
+
+Converted from the author's original OBJ by `scripts/build-tbm-model.mjs`, and
+used with the modifications described in `src/tbm930-glb.js`: the ventral fins
+removed, the control surfaces hinged on their measured hinge lines, the
+undercarriage and its doors hung on trunnions so the simulator can raise and
+lower it, and the glazing retuned.
